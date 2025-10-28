@@ -100,13 +100,16 @@ fn parseArgs() !Options {
     _ = args.skip();
 
     while (args.next()) |arg| {
-        if (std.mem.eql(u8, arg, "-a") or std.mem.eql(u8, arg, "--all")) {
+        if (arg.len == 0) continue;
+
+        // Long form flags
+        if (std.mem.eql(u8, arg, "--all")) {
             opts.show_hidden = true;
-        } else if (std.mem.eql(u8, arg, "-p") or std.mem.eql(u8, arg, "--plain")) {
+        } else if (std.mem.eql(u8, arg, "--plain")) {
             opts.plain = true;
-        } else if (std.mem.eql(u8, arg, "-c") or std.mem.eql(u8, arg, "--csv")) {
+        } else if (std.mem.eql(u8, arg, "--csv")) {
             opts.csv = true;
-        } else if (std.mem.eql(u8, arg, "-h") or std.mem.eql(u8, arg, "--help")) {
+        } else if (std.mem.eql(u8, arg, "--help")) {
             std.debug.print("Usage: nulis [OPTIONS] [PATH]\n", .{});
             std.debug.print("Options:\n", .{});
             std.debug.print("  -a, --all     Show hidden files (files starting with .)\n", .{});
@@ -116,10 +119,33 @@ fn parseArgs() !Options {
             std.debug.print("\nArguments:\n", .{});
             std.debug.print("  PATH          Directory to list (default: current directory)\n", .{});
             std.process.exit(0);
-        } else if (arg.len > 0 and arg[0] != '-') {
+        } else if (std.mem.eql(u8, arg, "-h")) {
+            // Show help only for standalone -h
+            std.debug.print("Usage: nulis [OPTIONS] [PATH]\n", .{});
+            std.debug.print("Options:\n", .{});
+            std.debug.print("  -a, --all     Show hidden files (files starting with .)\n", .{});
+            std.debug.print("  -p, --plain   Plain text output (no table, no colors)\n", .{});
+            std.debug.print("  -c, --csv     CSV output format\n", .{});
+            std.debug.print("  -h, --help    Show this help message\n", .{});
+            std.debug.print("\nArguments:\n", .{});
+            std.debug.print("  PATH          Directory to list (default: current directory)\n", .{});
+            std.process.exit(0);
+        } else if (arg[0] == '-' and arg.len > 1 and arg[1] != '-') {
+            // Short form flags (can be grouped like -lah)
+            for (arg[1..]) |flag_char| {
+                switch (flag_char) {
+                    'a' => opts.show_hidden = true,
+                    'p' => opts.plain = true,
+                    'c' => opts.csv = true,
+                    // Silently ignore unknown flags including 'h' in groups (like ls does)
+                    else => {},
+                }
+            }
+        } else if (arg[0] != '-') {
             // Non-flag argument is treated as path
             opts.path = arg;
         }
+        // Silently ignore unknown long flags
     }
 
     return opts;
