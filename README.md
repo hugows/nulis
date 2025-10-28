@@ -107,18 +107,6 @@ $ nulis
 │ 2 │ nulis.zig│ file │ 8.1 kB │ 1 minute ago   │
 ╰───┴──────────┴──────┴────────┴────────────────╯
 
-# Show all files including hidden ones
-$ nulis -a
-╭───┬──────────┬──────┬────────┬────────────────╮
-│ # │ name     │ type │  size  │    modified    │
-├───┼──────────┼──────┼────────┼────────────────┤
-│ 0 │ .git     │ dir  │  160 B │ 10 minutes ago │
-│ 1 │ .gitignore│ file │   89 B │ 15 minutes ago │
-│ 2 │ build.sh │ file │  214 B │ 5 minutes ago  │
-│ 3 │ nulis    │ file │ 1.4 MB │ 2 minutes ago  │
-│ 4 │ nulis.zig│ file │ 8.1 kB │ 1 minute ago   │
-╰───┴──────────┴──────┴────────┴────────────────╯
-
 # CSV output for data processing
 $ nulis --csv
 type,name,size,modified
