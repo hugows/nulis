@@ -15,6 +15,7 @@ const Options = struct {
     csv: bool = false, // CSV output format
     path: []const u8 = ".", // directory path to list
     theme: ?[]const u8 = null, // theme string "dir,exe,sym,hdr"
+    hyperlink: bool = false, // wrap filenames in OSC 8 hyperlinks
 };
 
 // ANSI color codes
@@ -94,6 +95,57 @@ const ColorConfig = struct {
         return config;
     }
 };
+
+// OSC 8 hyperlink escape sequences
+const HYPERLINK_START = "\x1B]8;;file://";
+const HYPERLINK_MIDDLE = "\x1B\\";
+const HYPERLINK_END = "\x1B]8;;\x1B\\";
+
+fn percentEncodeChar(c: u8) bool {
+    return c <= 0x20 or c == 0x7F or c == ' ' or c == '%' or c == '#' or c == '?';
+}
+
+fn makeHyperlink(allocator: std.mem.Allocator, abs_path: []const u8, display_name: []const u8) ![]const u8 {
+    // Calculate size needed for percent-encoded path
+    var encoded_size: usize = 0;
+    for (abs_path) |c| {
+        encoded_size += if (percentEncodeChar(c)) 3 else 1;
+    }
+
+    // Build the hyperlink: \x1B]8;;file:///path\x1B\display_name\x1B]8;;\x1B\
+    const total_size = HYPERLINK_START.len + encoded_size + HYPERLINK_MIDDLE.len + display_name.len + HYPERLINK_END.len;
+    var buf = try allocator.alloc(u8, total_size);
+    var idx: usize = 0;
+
+    // Add start
+    @memcpy(buf[idx..][0..HYPERLINK_START.len], HYPERLINK_START);
+    idx += HYPERLINK_START.len;
+
+    // Add percent-encoded path
+    for (abs_path) |c| {
+        if (percentEncodeChar(c)) {
+            buf[idx] = '%';
+            _ = std.fmt.bufPrint(buf[idx + 1 ..][0..2], "{X:0>2}", .{c}) catch unreachable;
+            idx += 3;
+        } else {
+            buf[idx] = c;
+            idx += 1;
+        }
+    }
+
+    // Add middle separator
+    @memcpy(buf[idx..][0..HYPERLINK_MIDDLE.len], HYPERLINK_MIDDLE);
+    idx += HYPERLINK_MIDDLE.len;
+
+    // Add display name
+    @memcpy(buf[idx..][0..display_name.len], display_name);
+    idx += display_name.len;
+
+    // Add end
+    @memcpy(buf[idx..][0..HYPERLINK_END.len], HYPERLINK_END);
+
+    return buf;
+}
 
 fn getColorForEntry(entry: FileEntry, config: *const ColorConfig) []const u8 {
     switch (entry.kind) {
@@ -178,6 +230,8 @@ fn parseArgs() !Options {
             opts.plain = true;
         } else if (std.mem.eql(u8, arg, "--csv")) {
             opts.csv = true;
+        } else if (std.mem.eql(u8, arg, "--hyperlink")) {
+            opts.hyperlink = true;
         } else if (std.mem.startsWith(u8, arg, "--theme=")) {
             opts.theme = arg[8..];
         } else if (std.mem.eql(u8, arg, "--help")) {
@@ -186,6 +240,7 @@ fn parseArgs() !Options {
             std.debug.print("  -a, --all          Show hidden files (files starting with .)\n", .{});
             std.debug.print("  -p, --plain        Plain text output (no table, no colors)\n", .{});
             std.debug.print("  -c, --csv          CSV output format\n", .{});
+            std.debug.print("      --hyperlink    Make filenames clickable hyperlinks\n", .{});
             std.debug.print("      --theme=CODES  Custom colors (e.g., --theme=96,91,95,92)\n", .{});
             std.debug.print("  -h, --help         Show this help message\n", .{});
             std.debug.print("\nArguments:\n", .{});
@@ -198,6 +253,7 @@ fn parseArgs() !Options {
             std.debug.print("  -a, --all          Show hidden files (files starting with .)\n", .{});
             std.debug.print("  -p, --plain        Plain text output (no table, no colors)\n", .{});
             std.debug.print("  -c, --csv          CSV output format\n", .{});
+            std.debug.print("      --hyperlink    Make filenames clickable hyperlinks\n", .{});
             std.debug.print("      --theme=CODES  Custom colors (e.g., --theme=96,91,95,92)\n", .{});
             std.debug.print("  -h, --help         Show this help message\n", .{});
             std.debug.print("\nArguments:\n", .{});
@@ -354,7 +410,19 @@ pub fn main() !void {
     for (0..max_name_len) |_| std.debug.print("─", .{});
     std.debug.print("─┼──────┼──────────┼────────────────┤\n", .{});
 
+    // Get absolute path of the directory for hyperlinks
+    var abs_dir_buf: [std.posix.PATH_MAX]u8 = undefined;
+    const abs_dir = try dir.realpath(".", &abs_dir_buf);
+
     // Print entries
+    var hyperlink_strings: std.ArrayList([]const u8) = .{};
+    defer {
+        for (hyperlink_strings.items) |str| {
+            allocator.free(str);
+        }
+        hyperlink_strings.deinit(allocator);
+    }
+
     for (entries.items, 0..) |entry, i| {
         var size_buf: [32]u8 = undefined;
         var time_buf: [64]u8 = undefined;
@@ -370,12 +438,23 @@ pub fn main() !void {
 
         const color = getColorForEntry(entry, &color_config);
 
+        // Prepare filename display (with hyperlink if enabled)
+        const display_name = if (opts.hyperlink) blk: {
+            // Build absolute path: abs_dir + "/" + entry.name
+            const abs_path = try std.fmt.allocPrint(allocator, "{s}/{s}", .{ abs_dir, entry.name });
+            defer allocator.free(abs_path);
+
+            const hyperlinked = try makeHyperlink(allocator, abs_path, entry.name);
+            try hyperlink_strings.append(allocator, hyperlinked);
+            break :blk hyperlinked;
+        } else entry.name;
+
         // Print index with padding
         var idx_buf: [32]u8 = undefined;
         const idx_str = try std.fmt.bufPrint(&idx_buf, "{d}", .{i});
         std.debug.print("│ ", .{});
         for (0..index_width - idx_str.len) |_| std.debug.print(" ", .{});
-        std.debug.print("{s}{s}{s} │ {s}{s}{s}", .{ color_config.header, idx_str, Color.reset, color, entry.name, Color.reset });
+        std.debug.print("{s}{s}{s} │ {s}{s}{s}", .{ color_config.header, idx_str, Color.reset, color, display_name, Color.reset });
         for (0..max_name_len - entry.name.len) |_| std.debug.print(" ", .{});
         std.debug.print(" │ {s} │ {s: >8} │ {s: <14} │\n", .{ type_str, size_str, time_str });
     }

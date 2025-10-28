@@ -23,6 +23,7 @@ A modern, colorful file listing tool written in Zig that displays files in a bea
 - 📏 **Human-readable sizes** - KB, MB, GB formatting
 - ⏱️ **Relative timestamps** - "5 minutes ago", "2 days ago", etc.
 - 🔧 **Dynamic column widths** - Adapts to your file names
+- 🔗 **Clickable hyperlinks** - OSC 8 support for terminal hyperlinks (iTerm2, kitty, WezTerm, etc.)
 
 ## Installation
 
@@ -76,6 +77,9 @@ nulis -p
 
 # Customize colors with theme
 nulis --theme=34,31,95,92
+
+# Make filenames clickable hyperlinks (OSC 8)
+nulis --hyperlink
 
 # Combine options with paths
 nulis -a /etc           # Show all files in /etc
