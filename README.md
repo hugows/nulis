@@ -130,11 +130,43 @@ $ nulis --csv > files.csv
 
 ## Color Scheme
 
+### Default Colors
+
 - **Directories**: Cyan (bright blue)
 - **Executables**: Light red
 - **Symlinks**: Magenta
 - **Regular files**: Default terminal color
 - **Headers & indices**: Green
+
+### Customizing Colors
+
+You can customize the color scheme by editing the config file:
+
+```bash
+nulis --config
+```
+
+This will open `~/.config/nulis/config` in your `$EDITOR` (or `vi` if not set). The config file uses ANSI color codes:
+
+```ini
+# nulis color configuration
+# Common ANSI color codes:
+# 30=black, 31=red, 32=green, 33=yellow, 34=blue, 35=magenta, 36=cyan, 37=white
+# 90=bright black, 91=bright red, 92=bright green, 93=bright yellow
+# 94=bright blue, 95=bright magenta, 96=bright cyan, 97=bright white
+
+directory=96    # cyan
+executable=91   # light red
+symlink=95      # magenta
+header=92       # green
+```
+
+Change the numbers to use different colors. For example, to make directories blue and executables red:
+
+```ini
+directory=34    # blue instead of cyan
+executable=31   # red instead of light red
+```
 
 ## License
 
