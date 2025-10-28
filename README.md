@@ -2,7 +2,7 @@
 
 A modern, colorful file listing tool written in Zig that displays files in a beautiful nushell-style table format.
 
-![nulis screenshot](https://github.com/hugows/nulis/assets/example.png)
+<img width="1824" height="1556" alt="CleanShot 2025-10-28 at 12 30 06@2x" src="https://github.com/user-attachments/assets/05cc321f-19bb-4e50-bedf-0a97639e364e" />
 
 ## Features
 
