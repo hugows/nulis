@@ -180,19 +180,19 @@ pub fn main() !void {
     for (0..index_width) |_| std.debug.print("─", .{});
     std.debug.print("─┬─", .{});
     for (0..max_name_len) |_| std.debug.print("─", .{});
-    std.debug.print("─┬──────┬────────┬────────────────╮\n", .{});
+    std.debug.print("─┬──────┬──────────┬────────────────╮\n", .{});
 
     std.debug.print("│ ", .{});
     for (0..index_width - 1) |_| std.debug.print(" ", .{});
     std.debug.print("{s}#{s} │ {s}name{s}", .{ Color.green, Color.reset, Color.green, Color.reset });
     for (0..max_name_len - 4) |_| std.debug.print(" ", .{});
-    std.debug.print(" │ {s}type{s} │ {s} size{s}  │ {s}   modified{s}    │\n", .{ Color.green, Color.reset, Color.green, Color.reset, Color.green, Color.reset });
+    std.debug.print(" │ {s}type{s} │ {s}  size{s}   │ {s}   modified{s}    │\n", .{ Color.green, Color.reset, Color.green, Color.reset, Color.green, Color.reset });
 
     std.debug.print("├─", .{});
     for (0..index_width) |_| std.debug.print("─", .{});
     std.debug.print("─┼─", .{});
     for (0..max_name_len) |_| std.debug.print("─", .{});
-    std.debug.print("─┼──────┼────────┼────────────────┤\n", .{});
+    std.debug.print("─┼──────┼──────────┼────────────────┤\n", .{});
 
     // Print entries
     for (entries.items, 0..) |entry, i| {
@@ -217,7 +217,7 @@ pub fn main() !void {
         for (0..index_width - idx_str.len) |_| std.debug.print(" ", .{});
         std.debug.print("{s}{s}{s} │ {s}{s}{s}", .{ Color.green, idx_str, Color.reset, color, entry.name, Color.reset });
         for (0..max_name_len - entry.name.len) |_| std.debug.print(" ", .{});
-        std.debug.print(" │ {s} │ {s: >6} │ {s: <14} │\n", .{ type_str, size_str, time_str });
+        std.debug.print(" │ {s} │ {s: >8} │ {s: <14} │\n", .{ type_str, size_str, time_str });
     }
 
     // Print footer
@@ -225,5 +225,5 @@ pub fn main() !void {
     for (0..index_width) |_| std.debug.print("─", .{});
     std.debug.print("─┴─", .{});
     for (0..max_name_len) |_| std.debug.print("─", .{});
-    std.debug.print("─┴──────┴────────┴────────────────╯\n", .{});
+    std.debug.print("─┴──────┴──────────┴────────────────╯\n", .{});
 }
