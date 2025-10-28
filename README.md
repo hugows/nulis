@@ -63,10 +63,14 @@ nulis -c
 nulis --plain
 nulis -p
 
+# Customize colors with theme
+nulis --theme=34,31,95,92
+
 # Combine options with paths
 nulis -a /etc           # Show all files in /etc
 nulis --csv ~/Projects  # List ~/Projects in CSV format
 nulis -ac /var/log      # All files in /var/log as CSV
+nulis --theme=96,91,95,92 ~/Documents  # Custom colors for ~/Documents
 
 # Show help
 nulis -h
@@ -140,32 +144,27 @@ $ nulis --csv > files.csv
 
 ### Customizing Colors
 
-You can customize the color scheme by editing the config file:
+You can customize the color scheme using the `--theme` flag with comma-separated ANSI color codes:
 
 ```bash
-nulis --config
+# Custom theme: directory, executable, symlink, header
+nulis --theme=34,31,35,33
 ```
 
-This will open `~/.config/nulis/config` in your `$EDITOR` (or `vi` if not set). The config file uses ANSI color codes:
+Common ANSI color codes:
+- `30`-`37`: black, red, green, yellow, blue, magenta, cyan, white
+- `90`-`97`: bright versions (e.g., `96`=bright cyan, `91`=bright red)
 
-```ini
-# nulis color configuration
-# Common ANSI color codes:
-# 30=black, 31=red, 32=green, 33=yellow, 34=blue, 35=magenta, 36=cyan, 37=white
-# 90=bright black, 91=bright red, 92=bright green, 93=bright yellow
-# 94=bright blue, 95=bright magenta, 96=bright cyan, 97=bright white
+**Examples:**
+```bash
+# Default theme (cyan dirs, bright red executables, magenta links, green headers)
+nulis --theme=96,91,95,92
 
-directory=96    # cyan
-executable=91   # light red
-symlink=95      # magenta
-header=92       # green
-```
+# Blue directories, red executables
+nulis --theme=34,31,95,92
 
-Change the numbers to use different colors. For example, to make directories blue and executables red:
-
-```ini
-directory=34    # blue instead of cyan
-executable=31   # red instead of light red
+# All bright colors
+nulis --theme=94,91,95,93
 ```
 
 ## License
