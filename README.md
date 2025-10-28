@@ -26,11 +26,22 @@ A modern, colorful file listing tool written in Zig that displays files in a bea
 
 ## Installation
 
-### Prerequisites
+### Homebrew (recommended)
 
-- [Zig 0.15.1](https://ziglang.org/download/) or later
+```bash
+brew tap hugows/tap
+brew install nulis
+```
+
+Or install directly without tapping:
+
+```bash
+brew install hugows/tap/nulis
+```
 
 ### Build from source
+
+**Prerequisites:** [Zig 0.15.1](https://ziglang.org/download/) or later
 
 ```bash
 git clone https://github.com/hugows/nulis.git
