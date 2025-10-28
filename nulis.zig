@@ -169,13 +169,15 @@ pub fn main() !void {
 
     // Simple plain text output when piped or --plain flag
     if (use_plain) {
+        var buf: [4096]u8 = undefined;
         for (entries.items) |entry| {
             const type_char: u8 = switch (entry.kind) {
                 .directory => 'd',
                 .sym_link => 'l',
                 else => '-',
             };
-            std.debug.print("{c} {s}\n", .{ type_char, entry.name });
+            const line = try std.fmt.bufPrint(&buf, "{c} {s}\n", .{ type_char, entry.name });
+            _ = try std.posix.write(std.posix.STDOUT_FILENO, line);
         }
         return;
     }
