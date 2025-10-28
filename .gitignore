@@ -1,0 +1,12 @@
+# Compiled binary
+nulis
+
+# Zig cache
+zig-cache/
+zig-out/
+
+# Editor files
+*.swp
+*.swo
+*~
+.DS_Store
