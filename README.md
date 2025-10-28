@@ -36,6 +36,11 @@ This will compile `nulis` and install it to `~/bin/nulis`. Make sure `~/bin` is 
 # List files in current directory (hides hidden files by default)
 nulis
 
+# List a specific directory
+nulis /tmp
+nulis ~/Documents
+nulis /var/log
+
 # Show all files including hidden ones
 nulis -a
 nulis --all
@@ -48,8 +53,10 @@ nulis -c
 nulis --plain
 nulis -p
 
-# Combine options
-nulis -ac        # Show all files in CSV format
+# Combine options with paths
+nulis -a /etc           # Show all files in /etc
+nulis --csv ~/Projects  # List ~/Projects in CSV format
+nulis -ac /var/log      # All files in /var/log as CSV
 
 # Show help
 nulis -h
