@@ -2,7 +2,7 @@
 
 A modern, colorful file listing tool written in Zig that displays files in a beautiful nushell-style table format.
 
-<img width="600" height="500" alt="CleanShot 2025-10-28 at 12 30 06@2x" src="https://github.com/user-attachments/assets/05cc321f-19bb-4e50-bedf-0a97639e364e" />
+<img width="1634" height="1236" alt="CleanShot 2025-10-28 at 12 32 26@2x" src="https://github.com/user-attachments/assets/d6de2402-a2ed-4708-ae75-e4a1e2a313b7" />
 
 ## Features
 
