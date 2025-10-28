@@ -40,6 +40,17 @@ nulis
 nulis -a
 nulis --all
 
+# Output as CSV (great for data processing)
+nulis --csv
+nulis -c
+
+# Plain text output (auto-enabled when piped)
+nulis --plain
+nulis -p
+
+# Combine options
+nulis -ac        # Show all files in CSV format
+
 # Show help
 nulis -h
 nulis --help
@@ -90,6 +101,26 @@ $ nulis -a
 │ 3 │ nulis    │ file │ 1.4 MB │ 2 minutes ago  │
 │ 4 │ nulis.zig│ file │ 8.1 kB │ 1 minute ago   │
 ╰───┴──────────┴──────┴────────┴────────────────╯
+
+# CSV output for data processing
+$ nulis --csv
+type,name,size,modified
+file,nulis,1462232,1761674006599309545
+file,nulis.zig,10318,1761673980964378600
+file,README.md,3691,1761668703022624416
+file,build.sh,214,1761662902741192631
+
+# Pipe to grep (automatically uses plain text)
+$ nulis | grep README
+- README.md
+
+# CSV with grep to filter by type
+$ nulis --csv | grep "^dir"
+dir,.git,448,1761673898588605893
+dir,.claude,96,1761673630279137747
+
+# Save CSV to file for spreadsheet
+$ nulis --csv > files.csv
 ```
 
 ## Color Scheme
