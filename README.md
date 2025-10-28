@@ -2,7 +2,17 @@
 
 A modern, colorful file listing tool written in Zig that displays files in a beautiful nushell-style table format.
 
-<img width="1634" height="1236" alt="CleanShot 2025-10-28 at 12 32 26@2x" src="https://github.com/user-attachments/assets/d6de2402-a2ed-4708-ae75-e4a1e2a313b7" />
+```
+~/vibe/nulis ls
+╭───┬───────────┬──────┬──────────┬────────────────╮
+│ # │ name      │ type │   size   │    modified    │
+├───┼───────────┼──────┼──────────┼────────────────┤
+│ 0 │ nulis     │ file │   1.4 MB │ 2 minutes ago  │
+│ 1 │ nulis.zig │ file │  11.4 kB │ 3 minutes ago  │
+│ 2 │ README.md │ file │   4.5 kB │ 4 minutes ago  │
+│ 3 │ build.sh  │ file │    214 B │ 6 hours ago    │
+╰───┴───────────┴──────┴──────────┴────────────────╯
+```
 
 ## Features
 
