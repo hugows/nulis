@@ -19,26 +19,86 @@ const Options = struct {
 // ANSI color codes
 const Color = struct {
     const reset = "\x1b[0m";
-    const cyan = "\x1b[96m";
-    const light_red = "\x1b[91m";
-    const magenta = "\x1b[95m";
-    const green = "\x1b[92m";
-    const yellow = "\x1b[93m";
 };
 
-fn getColorForEntry(entry: FileEntry) []const u8 {
+const ColorConfig = struct {
+    directory: []const u8,
+    executable: []const u8,
+    symlink: []const u8,
+    header: []const u8,
+    regular: []const u8,
+
+    fn default() ColorConfig {
+        return ColorConfig{
+            .directory = "\x1b[96m",    // cyan
+            .executable = "\x1b[91m",   // light red
+            .symlink = "\x1b[95m",      // magenta
+            .header = "\x1b[92m",       // green
+            .regular = "\x1b[0m",       // reset/default
+        };
+    }
+
+    fn getConfigPath(allocator: std.mem.Allocator) ![]const u8 {
+        const home = std.posix.getenv("HOME") orelse return error.NoHomeDir;
+        return std.fs.path.join(allocator, &[_][]const u8{ home, ".config", "nulis", "config" });
+    }
+
+    fn fromFile(allocator: std.mem.Allocator) !ColorConfig {
+        var config = ColorConfig.default();
+
+        const config_path = getConfigPath(allocator) catch return config;
+        defer allocator.free(config_path);
+
+        const file = std.fs.openFileAbsolute(config_path, .{}) catch return config;
+        defer file.close();
+
+        const content = file.readToEndAlloc(allocator, 1024 * 1024) catch return config;
+        defer allocator.free(content);
+
+        var lines = std.mem.splitScalar(u8, content, '\n');
+        while (lines.next()) |line| {
+            const trimmed = std.mem.trim(u8, line, " \t\r");
+            if (trimmed.len == 0 or trimmed[0] == '#') continue;
+
+            var parts = std.mem.splitScalar(u8, trimmed, '=');
+            const key = std.mem.trim(u8, parts.next() orelse continue, " \t");
+            const value = std.mem.trim(u8, parts.next() orelse continue, " \t");
+
+            if (value.len == 0) continue;
+
+            var color_buf: [16]u8 = undefined;
+            const color_code = std.fmt.bufPrint(&color_buf, "\x1b[{s}m", .{value}) catch continue;
+
+            const color_copy = allocator.dupe(u8, color_code) catch continue;
+
+            if (std.mem.eql(u8, key, "directory")) {
+                config.directory = color_copy;
+            } else if (std.mem.eql(u8, key, "executable")) {
+                config.executable = color_copy;
+            } else if (std.mem.eql(u8, key, "symlink")) {
+                config.symlink = color_copy;
+            } else if (std.mem.eql(u8, key, "header")) {
+                config.header = color_copy;
+            }
+        }
+
+        return config;
+    }
+};
+
+fn getColorForEntry(entry: FileEntry, config: *const ColorConfig) []const u8 {
     switch (entry.kind) {
-        .directory => return Color.cyan,
-        .sym_link => return Color.magenta,
+        .directory => return config.directory,
+        .sym_link => return config.symlink,
         .file => {
             // Check if executable (owner, group, or other has execute permission)
             const is_executable = (entry.mode & 0o111) != 0;
             if (is_executable) {
-                return Color.light_red;
+                return config.executable;
             }
-            return Color.reset;
+            return config.regular;
         },
-        else => return Color.reset,
+        else => return config.regular,
     }
 }
 
@@ -92,6 +152,64 @@ fn sortByModifiedDesc(_: void, a: FileEntry, b: FileEntry) bool {
     return a.modified > b.modified;
 }
 
+fn openConfigEditor() !void {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+    const allocator = gpa.allocator();
+
+    const config_path = try ColorConfig.getConfigPath(allocator);
+    defer allocator.free(config_path);
+
+    // Create config directory if it doesn't exist
+    const config_dir = std.fs.path.dirname(config_path) orelse return error.InvalidPath;
+    std.fs.makeDirAbsolute(config_dir) catch |err| {
+        if (err != error.PathAlreadyExists) return err;
+    };
+
+    // Create default config if it doesn't exist
+    const file_exists = blk: {
+        const file = std.fs.openFileAbsolute(config_path, .{ .mode = .read_only }) catch |err| {
+            if (err == error.FileNotFound) {
+                break :blk false;
+            } else {
+                return err;
+            }
+        };
+        file.close();
+        break :blk true;
+    };
+
+    if (!file_exists) {
+        const default_content =
+            \\# nulis color configuration
+            \\# ANSI color codes: https://en.wikipedia.org/wiki/ANSI_escape_code#Colors
+            \\#
+            \\# Common colors:
+            \\# 30=black, 31=red, 32=green, 33=yellow, 34=blue, 35=magenta, 36=cyan, 37=white
+            \\# 90=bright black, 91=bright red, 92=bright green, 93=bright yellow
+            \\# 94=bright blue, 95=bright magenta, 96=bright cyan, 97=bright white
+            \\
+            \\directory=96
+            \\executable=91
+            \\symlink=95
+            \\header=92
+            \\
+        ;
+
+        const new_file = try std.fs.createFileAbsolute(config_path, .{});
+        defer new_file.close();
+        try new_file.writeAll(default_content);
+    }
+
+    // Open in editor
+    const editor = std.posix.getenv("EDITOR") orelse std.posix.getenv("VISUAL") orelse "vi";
+
+    var child = std.process.Child.init(&[_][]const u8{ editor, config_path }, allocator);
+    _ = try child.spawnAndWait();
+
+    std.debug.print("Config saved to: {s}\n", .{config_path});
+}
+
 fn parseArgs() !Options {
     var opts = Options{};
     var args = std.process.args();
@@ -109,26 +227,31 @@ fn parseArgs() !Options {
             opts.plain = true;
         } else if (std.mem.eql(u8, arg, "--csv")) {
             opts.csv = true;
+        } else if (std.mem.eql(u8, arg, "--config")) {
+            try openConfigEditor();
+            std.process.exit(0);
         } else if (std.mem.eql(u8, arg, "--help")) {
             std.debug.print("Usage: nulis [OPTIONS] [PATH]\n", .{});
             std.debug.print("Options:\n", .{});
-            std.debug.print("  -a, --all     Show hidden files (files starting with .)\n", .{});
-            std.debug.print("  -p, --plain   Plain text output (no table, no colors)\n", .{});
-            std.debug.print("  -c, --csv     CSV output format\n", .{});
-            std.debug.print("  -h, --help    Show this help message\n", .{});
+            std.debug.print("  -a, --all       Show hidden files (files starting with .)\n", .{});
+            std.debug.print("  -p, --plain     Plain text output (no table, no colors)\n", .{});
+            std.debug.print("  -c, --csv       CSV output format\n", .{});
+            std.debug.print("      --config    Edit color configuration file\n", .{});
+            std.debug.print("  -h, --help      Show this help message\n", .{});
             std.debug.print("\nArguments:\n", .{});
-            std.debug.print("  PATH          Directory to list (default: current directory)\n", .{});
+            std.debug.print("  PATH            Directory to list (default: current directory)\n", .{});
             std.process.exit(0);
         } else if (std.mem.eql(u8, arg, "-h")) {
             // Show help only for standalone -h
             std.debug.print("Usage: nulis [OPTIONS] [PATH]\n", .{});
             std.debug.print("Options:\n", .{});
-            std.debug.print("  -a, --all     Show hidden files (files starting with .)\n", .{});
-            std.debug.print("  -p, --plain   Plain text output (no table, no colors)\n", .{});
-            std.debug.print("  -c, --csv     CSV output format\n", .{});
-            std.debug.print("  -h, --help    Show this help message\n", .{});
+            std.debug.print("  -a, --all       Show hidden files (files starting with .)\n", .{});
+            std.debug.print("  -p, --plain     Plain text output (no table, no colors)\n", .{});
+            std.debug.print("  -c, --csv       CSV output format\n", .{});
+            std.debug.print("      --config    Edit color configuration file\n", .{});
+            std.debug.print("  -h, --help      Show this help message\n", .{});
             std.debug.print("\nArguments:\n", .{});
-            std.debug.print("  PATH          Directory to list (default: current directory)\n", .{});
+            std.debug.print("  PATH            Directory to list (default: current directory)\n", .{});
             std.process.exit(0);
         } else if (arg[0] == '-' and arg.len > 1 and arg[1] != '-') {
             // Short form flags (can be grouped like -lah)
@@ -159,6 +282,9 @@ pub fn main() !void {
 
     const allocator = gpa.allocator();
     const opts = try parseArgs();
+
+    // Load color configuration
+    const color_config = try ColorConfig.fromFile(allocator);
 
     // Detect if output is to a terminal (for colors and table formatting)
     // Check stdout since that's what gets piped
@@ -265,9 +391,9 @@ pub fn main() !void {
 
     std.debug.print("│ ", .{});
     for (0..index_width - 1) |_| std.debug.print(" ", .{});
-    std.debug.print("{s}#{s} │ {s}name{s}", .{ Color.green, Color.reset, Color.green, Color.reset });
+    std.debug.print("{s}#{s} │ {s}name{s}", .{ color_config.header, Color.reset, color_config.header, Color.reset });
     for (0..max_name_len - 4) |_| std.debug.print(" ", .{});
-    std.debug.print(" │ {s}type{s} │ {s}  size{s}   │ {s}   modified{s}    │\n", .{ Color.green, Color.reset, Color.green, Color.reset, Color.green, Color.reset });
+    std.debug.print(" │ {s}type{s} │ {s}  size{s}   │ {s}   modified{s}    │\n", .{ color_config.header, Color.reset, color_config.header, Color.reset, color_config.header, Color.reset });
 
     std.debug.print("├─", .{});
     for (0..index_width) |_| std.debug.print("─", .{});
@@ -289,14 +415,14 @@ pub fn main() !void {
             else => "????",
         };
 
-        const color = getColorForEntry(entry);
+        const color = getColorForEntry(entry, &color_config);
 
         // Print index with padding
         var idx_buf: [32]u8 = undefined;
         const idx_str = try std.fmt.bufPrint(&idx_buf, "{d}", .{i});
         std.debug.print("│ ", .{});
         for (0..index_width - idx_str.len) |_| std.debug.print(" ", .{});
-        std.debug.print("{s}{s}{s} │ {s}{s}{s}", .{ Color.green, idx_str, Color.reset, color, entry.name, Color.reset });
+        std.debug.print("{s}{s}{s} │ {s}{s}{s}", .{ color_config.header, idx_str, Color.reset, color, entry.name, Color.reset });
         for (0..max_name_len - entry.name.len) |_| std.debug.print(" ", .{});
         std.debug.print(" │ {s} │ {s: >8} │ {s: <14} │\n", .{ type_str, size_str, time_str });
     }
