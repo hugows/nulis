@@ -11,6 +11,7 @@ const FileEntry = struct {
 const Options = struct {
     show_hidden: bool = false,
     sort_by_time: bool = true, // true = most recent first
+    plain: bool = false, // plain text output (no table, no colors)
 };
 
 // ANSI color codes
@@ -99,10 +100,13 @@ fn parseArgs() !Options {
     while (args.next()) |arg| {
         if (std.mem.eql(u8, arg, "-a") or std.mem.eql(u8, arg, "--all")) {
             opts.show_hidden = true;
+        } else if (std.mem.eql(u8, arg, "-p") or std.mem.eql(u8, arg, "--plain")) {
+            opts.plain = true;
         } else if (std.mem.eql(u8, arg, "-h") or std.mem.eql(u8, arg, "--help")) {
             std.debug.print("Usage: nulis [OPTIONS]\n", .{});
             std.debug.print("Options:\n", .{});
             std.debug.print("  -a, --all     Show hidden files (files starting with .)\n", .{});
+            std.debug.print("  -p, --plain   Plain text output (no table, no colors)\n", .{});
             std.debug.print("  -h, --help    Show this help message\n", .{});
             std.process.exit(0);
         }
@@ -119,6 +123,11 @@ pub fn main() !void {
 
     const allocator = gpa.allocator();
     const opts = try parseArgs();
+
+    // Detect if output is to a terminal (for colors and table formatting)
+    // Check stdout since that's what gets piped
+    const stdout_is_tty = std.posix.isatty(std.posix.STDOUT_FILENO);
+    const use_plain = opts.plain or !stdout_is_tty;
 
     var dir = try std.fs.cwd().openDir(".", .{ .iterate = true });
     defer dir.close();
@@ -156,6 +165,19 @@ pub fn main() !void {
     // Sort by modification time (most recent first)
     if (opts.sort_by_time) {
         std.mem.sort(FileEntry, entries.items, {}, sortByModifiedDesc);
+    }
+
+    // Simple plain text output when piped or --plain flag
+    if (use_plain) {
+        for (entries.items) |entry| {
+            const type_char: u8 = switch (entry.kind) {
+                .directory => 'd',
+                .sym_link => 'l',
+                else => '-',
+            };
+            std.debug.print("{c} {s}\n", .{ type_char, entry.name });
+        }
+        return;
     }
 
     // Calculate column widths
