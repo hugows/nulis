@@ -112,7 +112,7 @@ file,build.sh,214,1761662902741192631
 
 # Pipe to grep (automatically uses plain text)
 $ nulis | grep README
-- README.md
+README.md
 
 # CSV with grep to filter by type
 $ nulis --csv | grep "^dir"
