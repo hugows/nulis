@@ -13,6 +13,7 @@ const Options = struct {
     sort_by_time: bool = true, // true = most recent first
     plain: bool = false, // plain text output (no table, no colors)
     csv: bool = false, // CSV output format
+    path: []const u8 = ".", // directory path to list
 };
 
 // ANSI color codes
@@ -106,13 +107,18 @@ fn parseArgs() !Options {
         } else if (std.mem.eql(u8, arg, "-c") or std.mem.eql(u8, arg, "--csv")) {
             opts.csv = true;
         } else if (std.mem.eql(u8, arg, "-h") or std.mem.eql(u8, arg, "--help")) {
-            std.debug.print("Usage: nulis [OPTIONS]\n", .{});
+            std.debug.print("Usage: nulis [OPTIONS] [PATH]\n", .{});
             std.debug.print("Options:\n", .{});
             std.debug.print("  -a, --all     Show hidden files (files starting with .)\n", .{});
             std.debug.print("  -p, --plain   Plain text output (no table, no colors)\n", .{});
             std.debug.print("  -c, --csv     CSV output format\n", .{});
             std.debug.print("  -h, --help    Show this help message\n", .{});
+            std.debug.print("\nArguments:\n", .{});
+            std.debug.print("  PATH          Directory to list (default: current directory)\n", .{});
             std.process.exit(0);
+        } else if (arg.len > 0 and arg[0] != '-') {
+            // Non-flag argument is treated as path
+            opts.path = arg;
         }
     }
 
@@ -133,7 +139,7 @@ pub fn main() !void {
     const stdout_is_tty = std.posix.isatty(std.posix.STDOUT_FILENO);
     const use_plain = opts.plain or !stdout_is_tty;
 
-    var dir = try std.fs.cwd().openDir(".", .{ .iterate = true });
+    var dir = try std.fs.cwd().openDir(opts.path, .{ .iterate = true });
     defer dir.close();
 
     var entries: std.ArrayList(FileEntry) = .{};
