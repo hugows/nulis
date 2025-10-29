@@ -11,6 +11,7 @@ const FileEntry = struct {
 const Options = struct {
     show_hidden: bool = false,
     sort_by_time: bool = true, // true = most recent first
+    reverse: bool = false, // reverse sort order (most recent last)
     plain: bool = false, // plain text output (no table, no colors)
     csv: bool = false, // CSV output format
     path: []const u8 = ".", // directory path to list
@@ -213,6 +214,10 @@ fn sortByModifiedDesc(_: void, a: FileEntry, b: FileEntry) bool {
     return a.modified > b.modified;
 }
 
+fn sortByModifiedAsc(_: void, a: FileEntry, b: FileEntry) bool {
+    return a.modified < b.modified;
+}
+
 fn parseArgs() !Options {
     var opts = Options{};
     var args = std.process.args();
@@ -230,6 +235,8 @@ fn parseArgs() !Options {
             opts.plain = true;
         } else if (std.mem.eql(u8, arg, "--csv")) {
             opts.csv = true;
+        } else if (std.mem.eql(u8, arg, "--reverse")) {
+            opts.reverse = true;
         } else if (std.mem.eql(u8, arg, "--hyperlink")) {
             opts.hyperlink = true;
         } else if (std.mem.startsWith(u8, arg, "--theme=")) {
@@ -240,6 +247,7 @@ fn parseArgs() !Options {
             std.debug.print("  -a, --all          Show hidden files (files starting with .)\n", .{});
             std.debug.print("  -p, --plain        Plain text output (no table, no colors)\n", .{});
             std.debug.print("  -c, --csv          CSV output format\n", .{});
+            std.debug.print("  -r, --reverse      Reverse sort order (most recent last)\n", .{});
             std.debug.print("      --hyperlink    Make filenames clickable hyperlinks\n", .{});
             std.debug.print("      --theme=CODES  Custom colors (e.g., --theme=96,91,95,92)\n", .{});
             std.debug.print("  -h, --help         Show this help message\n", .{});
@@ -253,6 +261,7 @@ fn parseArgs() !Options {
             std.debug.print("  -a, --all          Show hidden files (files starting with .)\n", .{});
             std.debug.print("  -p, --plain        Plain text output (no table, no colors)\n", .{});
             std.debug.print("  -c, --csv          CSV output format\n", .{});
+            std.debug.print("  -r, --reverse      Reverse sort order (most recent last)\n", .{});
             std.debug.print("      --hyperlink    Make filenames clickable hyperlinks\n", .{});
             std.debug.print("      --theme=CODES  Custom colors (e.g., --theme=96,91,95,92)\n", .{});
             std.debug.print("  -h, --help         Show this help message\n", .{});
@@ -266,6 +275,7 @@ fn parseArgs() !Options {
                     'a' => opts.show_hidden = true,
                     'p' => opts.plain = true,
                     'c' => opts.csv = true,
+                    'r' => opts.reverse = true,
                     // Silently ignore unknown flags including 'h' in groups (like ls does)
                     else => {},
                 }
@@ -333,9 +343,13 @@ pub fn main() !void {
 
     if (entries.items.len == 0) return;
 
-    // Sort by modification time (most recent first)
+    // Sort by modification time
     if (opts.sort_by_time) {
-        std.mem.sort(FileEntry, entries.items, {}, sortByModifiedDesc);
+        if (opts.reverse) {
+            std.mem.sort(FileEntry, entries.items, {}, sortByModifiedAsc);
+        } else {
+            std.mem.sort(FileEntry, entries.items, {}, sortByModifiedDesc);
+        }
     }
 
     // CSV output format
